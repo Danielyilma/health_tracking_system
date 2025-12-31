@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------------------
+  # INFRASTRUCTURE
+  # -------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: hts_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - hts_network
+
+  postgres:
+    image: postgres:15
+    container_name: hts_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME} # Default DB, services will create their own or use specific ones
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hts_network
+
+  # -------------------------------------------------------------------------
+  # SERVICES
+  # -------------------------------------------------------------------------
+  api_gateway:
+    build: ./api_gateway
+    container_name: hts_gateway
+    ports:
+      - "${GATEWAY_PORT}:8000"
+    environment:
+      - AUTH_SERVICE_URL=http://auth_service:8000
+      - HEALTH_SERVICE_URL=http://health_service:8000
+    depends_on:
+      - auth_service
+      - health_service
+    networks:
+      - hts_network
+
+  auth_service:
+    build: ./auth_service
+    container_name: hts_auth
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/auth_db
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hts_network
+
+  health_service:
+    build: ./health_service
+    container_name: hts_health
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/health_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hts_network
+
+  notification_service:
+    build: ./notification_service
+    container_name: hts_notification
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hts_network
+
+  analytics_service:
+    build: ./analytics_service
+    container_name: hts_analytics
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/analytics_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hts_network
+
+networks:
+  hts_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

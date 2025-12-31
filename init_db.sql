@@ -1,0 +1,3 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE health_db;
+CREATE DATABASE analytics_db;
