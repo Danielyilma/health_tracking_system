@@ -52,6 +52,7 @@ services:
     environment:
       - AUTH_SERVICE_URL=http://auth_service:8000
       - HEALTH_SERVICE_URL=http://health_service:8000
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS}
     depends_on:
       - auth_service
       - health_service
