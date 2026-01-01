@@ -17,7 +17,7 @@ The system enables users to register and authenticate, then submit health-relate
 | **Analytics Service** | Consumes events, aggregates stats (avg steps) | Internal | `analytics_db` |
 
 ### Communication Patterns
-- **Synchronous (REST)**: Client -> Gateway -> Auth/Health Services.
+- **Synchronous (REST APIs)**: Client -> Gateway -> Auth/Health Services.
 - **Asynchronous (Pub/Sub)**: Health Service -> RabbitMQ -> Notification/Analytics Services.
 
 ## Tech Stack
