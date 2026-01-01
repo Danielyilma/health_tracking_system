@@ -1,2 +1,8 @@
 aio_pika
 asyncio
+fastapi
+uvicorn
+sqlmodel
+psycopg2-binary
+requests
+websockets
