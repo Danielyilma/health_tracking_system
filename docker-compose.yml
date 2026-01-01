@@ -52,6 +52,9 @@ services:
     environment:
       - AUTH_SERVICE_URL=http://auth_service:8000
       - HEALTH_SERVICE_URL=http://health_service:8000
+    volumes:
+      - ./api_gateway:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - auth_service
       - health_service
@@ -64,6 +67,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/auth_db
       - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./auth_service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,6 +82,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/health_db
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./health_service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +99,9 @@ services:
     container_name: hts_notification
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    volumes:
+      - ./notification_service:/app
+    command: python main.py # Assuming this is not uvicorn, or check if it needs reload. Usually consumers are just python scripts.
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -101,10 +114,32 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/analytics_db
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./analytics_service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    networks:
+      - hts_network
+
+  analytics_worker:
+    build: ./analytics_service
+    container_name: hts_analytics_worker
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/analytics_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    volumes:
+      - ./analytics_service:/app
+    command: python worker.py
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - hts_network
