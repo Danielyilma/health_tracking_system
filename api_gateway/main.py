@@ -7,7 +7,10 @@ from fastapi.openapi.utils import get_openapi
 app = FastAPI(title="Health Tracking API Gateway")
 
 # Allow the frontend (and other callers) to reach the gateway from the browser
-FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS")
+if not FRONTEND_ORIGINS:
+    FRONTEND_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+
 allowed_origins = [origin.strip() for origin in FRONTEND_ORIGINS.split(",") if origin.strip()]
 
 app.add_middleware(
@@ -21,6 +24,7 @@ app.add_middleware(
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth_service:8000")
 HEALTH_SERVICE_URL = os.getenv("HEALTH_SERVICE_URL", "http://health_service:8000")
 ANALYTICS_SERVICE_URL = os.getenv("ANALYTICS_SERVICE_URL", "http://analytics_service:8000")
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://notification_service:8000")
 
 async def forward_request(url: str, request: Request):
     client = httpx.AsyncClient()
@@ -41,7 +45,17 @@ async def forward_request(url: str, request: Request):
             headers=headers,
             content=body
         )
-        return Response(content=response.content, status_code=response.status_code, headers=dict(response.headers))
+        # Filter out hop-by-hop headers and others that might conflict
+        filtered_headers = {
+            k: v for k, v in response.headers.items() 
+            if k.lower() not in [
+                "content-length", "content-encoding", "transfer-encoding", 
+                "connection", "keep-alive", "proxy-authenticate", 
+                "proxy-authorization", "te", "trailers", "upgrade", "host"
+            ]
+        }
+
+        return Response(content=response.content, status_code=response.status_code, headers=filtered_headers)
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Service unavailable: {str(e)}")
     finally:
@@ -62,6 +76,7 @@ def custom_openapi():
         (AUTH_SERVICE_URL, "/auth", "Auth Service"),
         (HEALTH_SERVICE_URL, "/health", "Health Service"),
         (ANALYTICS_SERVICE_URL, "/analytics", "Analytics Service"),
+        (NOTIFICATION_SERVICE_URL, "/notifications", "Notification Service"),
     ]
 
     openapi_schema["paths"] = {}
@@ -204,4 +219,8 @@ async def proxy_health(request: Request, path: str):
 @app.api_route("/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"], include_in_schema=False, operation_id="proxy_analytics")
 async def proxy_analytics(request: Request, path: str):
     return await forward_request(f"{ANALYTICS_SERVICE_URL}/{path}", request)
+
+@app.api_route("/notifications/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"], include_in_schema=False, operation_id="proxy_notifications")
+async def proxy_notifications(request: Request, path: str):
+    return await forward_request(f"{NOTIFICATION_SERVICE_URL}/{path}", request)
 

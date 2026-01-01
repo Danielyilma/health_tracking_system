@@ -100,6 +100,15 @@ async def update_health_record(
     if record.username != username:
          raise HTTPException(status_code=403, detail="Not authorized to access this record")
     
+    # Capture old state for analytics
+    old_data = {
+        "steps": record.steps,
+        "sleep_hours": record.sleep_hours,
+        "weight": record.weight,
+        "heart_rate": record.heart_rate,
+        # ... capture other relevant metrics for diffing
+    }
+
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
     for key, value in update_dict.items():
@@ -109,11 +118,12 @@ async def update_health_record(
     session.commit()
     session.refresh(record)
 
-    # Publish updated event
+    # Publish updated event with context
     event_data = {
         "record_id": record.id,
         "username": record.username,
         "updated_fields": update_dict,
+        "old_data": old_data, # NEW: Send old data to calculate delta
         "timestamp": record.timestamp.isoformat()
     }
     try:
@@ -136,13 +146,23 @@ async def delete_health_record(
     if record.username != username:
          raise HTTPException(status_code=403, detail="Not authorized to access this record")
     
+    # Capture record data before deletion
+    record_data = {
+        "steps": record.steps,
+        "sleep_hours": record.sleep_hours,
+        "weight": record.weight,
+        "heart_rate": record.heart_rate,
+        "timestamp": record.timestamp.isoformat()
+    }
+
     session.delete(record)
     session.commit()
 
-    # Publish deleted event
+    # Publish deleted event with data
     event_data = {
         "record_id": record_id,
-        "username": username
+        "username": username,
+        "deleted_record": record_data # NEW: Send deleted payload
     }
     try:
         await publish_event("deleted", event_data)
