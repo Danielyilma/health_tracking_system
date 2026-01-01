@@ -1,10 +1,10 @@
 # Health Tracking System - Distributed System Mini-Project
 
-A microservices-based distributed system for health tracking, demonstrating service decomposition, RESTful communication, and event-driven architecture.
+This project implements a microservices-based distributed health tracking system, designed to demonstrate core distributed system principles such as service decomposition, RESTful APIs, and event-driven communication.
 
 ## Architecture Overview
 
-The system allows users to register, log in, and submit health data (steps, weight, etc.). It distributes this data to ancillary services asynchronously.
+The system enables users to register and authenticate, then submit health-related data such as step counts and weight. Once submitted, this data is propagated asynchronously to supporting services, illustrating non-blocking communication and loose coupling between microservices.
 
 ### Components
 
