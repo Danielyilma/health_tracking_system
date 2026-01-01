@@ -32,12 +32,16 @@ The system allows users to register, log in, and submit health data (steps, weig
 - Docker & Docker Compose installed.
 
 ### Setup
-1.  Clone this repository.
-2.  Navigate to the project root:
+1. Clone this repository.
+2. Navigate to the project root:
     ```bash
-    cd HealthTrackingSystem
+    cd health_tracking_system
     ```
-3.  Check the `.env` file (defaults are provided for local dev).
+3. Copy environment defaults and adjust as needed:
+    ```bash
+    cp .env.example .env
+    # adjust DB_USER/DB_PASSWORD/SECRET_KEY if desired
+    ```
 
 ### Running the System
 Start all services in detached mode:
@@ -53,6 +57,16 @@ docker-compose up -d --build
     ```bash
     docker-compose logs -f notification_service analytics_service
     ```
+
+### Frontend (React/Vite)
+1. In another shell:
+    ```bash
+    cd frontend
+    cp .env.example .env
+    npm install
+    npm run dev
+    ```
+2. Open `http://localhost:5173`.
 
 ### Example Usage (curl)
 
