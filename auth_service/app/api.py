@@ -11,6 +11,7 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+    """Get currently authtnticated user"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -32,6 +33,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 
 @router.post("/register", response_model=User)
 def register(user: UserCreate, session: Session = Depends(get_session)):
+    """register a user"""
     statement = select(User).where(User.username == user.username)
     results = session.exec(statement)
     if results.first():
@@ -46,6 +48,7 @@ def register(user: UserCreate, session: Session = Depends(get_session)):
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    """authenticate and authorize a user"""
     statement = select(User).where(User.username == form_data.username)
     user = session.exec(statement).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -63,6 +66,7 @@ def read_users_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/profile", response_model=User)
 def update_profile(user_update: UserUpdate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    """update user profile"""
     user_data = user_update.dict(exclude_unset=True)
     for key, value in user_data.items():
         setattr(current_user, key, value)
